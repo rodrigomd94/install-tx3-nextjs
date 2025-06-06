@@ -7,6 +7,7 @@ import { installCommand } from './install.js';
 import { examplePageTemplate } from '../templates/example-page.js';
 import { envLocalTemplate } from '../templates/env-local.js';
 import { TrixInstaller } from '../utils/trix-installer.js';
+import { DevnetInstaller } from '../utils/devnet-installer.js';
 
 interface InitOptions {
   projectName?: string;
@@ -60,9 +61,22 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
     console.log(chalk.green('✅ trix is already installed'));
   }
 
+  // Ask about devnet setup if trix is available (installed or being installed)
+  let includeDevnet = false;
+  const hasTrix = trixInstalled || installTrix;
+  if (hasTrix && !options.dryRun) {
+    const { shouldIncludeDevnet } = await inquirer.prompt([{
+      type: 'confirm',
+      name: 'shouldIncludeDevnet',
+      message: 'Include devnet setup for local testing? (Adds dolos configuration)',
+      default: true
+    }]);
+    includeDevnet = shouldIncludeDevnet;
+  }
+
   if (options.dryRun) {
     console.log(chalk.yellow('🔍 DRY RUN - No changes will be made'));
-    await showInitDryRunPreview(projectName!, trixInstalled);
+    await showInitDryRunPreview(projectName!, trixInstalled, trixInstalled || true);
     return;
   }
 
@@ -118,6 +132,13 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
     console.log(chalk.blue('⚙️ Creating environment configuration...'));
     createEnvFile();
     console.log(chalk.green('⚙️ Environment configuration created'));
+
+    // Step 7: Set up devnet if requested
+    if (includeDevnet) {
+      console.log(chalk.blue('🌐 Setting up devnet configuration...'));
+      setupDevnet();
+      console.log(chalk.green('🌐 Devnet configuration created'));
+    }
 
     console.log(chalk.green(`🎉 Project created successfully in '${projectName}'!`));
     console.log();
@@ -201,7 +222,23 @@ function createEnvFile(): void {
   }
 }
 
-async function showInitDryRunPreview(projectName: string, trixInstalled: boolean): Promise<void> {
+function setupDevnet(): void {
+  try {
+    // Copy devnet folder to project
+    DevnetInstaller.copyDevnetFolder('devnet');
+    
+    // Add devnet:start script to package.json
+    const packageJson = JSON.parse(FileUtils.readFile('package.json'));
+    packageJson.scripts = packageJson.scripts || {};
+    packageJson.scripts['devnet:start'] = 'cd devnet && dolos daemon';
+    FileUtils.writeFile('package.json', JSON.stringify(packageJson, null, 2));
+    
+  } catch (error) {
+    console.log(chalk.yellow(`⚠️ Failed to setup devnet: ${error instanceof Error ? error.message : 'Unknown error'}`));
+  }
+}
+
+async function showInitDryRunPreview(projectName: string, trixInstalled: boolean, hasTrix: boolean): Promise<void> {
   console.log(chalk.blue('Actions that would be taken:'));
   console.log();
   
@@ -214,6 +251,14 @@ async function showInitDryRunPreview(projectName: string, trixInstalled: boolean
   } else {
     console.log(chalk.green('🔧 trix installation:'));
     console.log('  • trix is already installed');
+    console.log();
+  }
+
+  // Show devnet setup status
+  if (hasTrix) {
+    console.log(chalk.yellow('🌐 devnet setup (will be prompted if trix available):'));
+    console.log('  • Copy devnet configuration files');
+    console.log('  • Add devnet:start script to package.json');
     console.log();
   }
   
@@ -233,4 +278,7 @@ async function showInitDryRunPreview(projectName: string, trixInstalled: boolean
   console.log('  • Create scripts/generate-tx3.mjs');
   console.log('  • Replace app/page.tsx with TX3 example page');
   console.log('  • Create .env.local with TX3 environment variables');
+  if (hasTrix) {
+    console.log('  • Copy devnet folder (if selected)');
+  }
 }

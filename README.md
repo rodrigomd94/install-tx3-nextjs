@@ -1,6 +1,6 @@
 # TX3 Installer CLI
 
-A CLI tool that creates new Next.js projects with TX3 capabilities or adds TX3 to existing Next.js projects. Features shadcn/ui integration, optional trix installation, complete TX3 setup, and a working demo page out of the box.
+A CLI tool that creates new Next.js projects with TX3 capabilities or adds TX3 to existing Next.js projects. Features shadcn/ui integration, optional trix installation, devnet setup for local testing, complete TX3 setup, and a working demo page out of the box.
 
 ## Installation
 
@@ -70,6 +70,7 @@ Creates a complete TX3-enabled Next.js project:
    - `scripts/generate-tx3.mjs` - TX3 generation script
 9. **Replaces** `app/page.tsx` with TX3 demo page
 10. **Creates** `.env.local` with TX3 environment variables
+11. **Optionally sets up** devnet configuration (if trix is available)
 
 ### For Existing Projects (`install` command)
 
@@ -81,7 +82,8 @@ Adds TX3 capabilities to existing Next.js projects:
 4. **Updates** `tsconfig.json` with TX3 path mappings
 5. **Adds** TX3 scripts to your `package.json`
 6. **Creates** TX3 files and directories
-7. **Preserves** all existing functionality
+7. **Optionally sets up** devnet configuration (if trix is available)
+8. **Preserves** all existing functionality
 
 ## TypeScript Configuration
 
@@ -113,6 +115,32 @@ curl --proto '=https' --tlsv1.2 -LsSf https://github.com/tx3-lang/up/releases/la
 tx3up
 ```
 
+## Devnet Configuration
+
+When trix is available, the installer can optionally set up a local devnet for testing:
+
+- **Automatic setup**: Copies devnet configuration files to your project
+- **Dolos integration**: Pre-configured for local Cardano devnet
+- **Easy start**: Adds `devnet:start` script to package.json
+
+**Devnet files included:**
+- `devnet/dolos.toml` - Main dolos configuration
+- `devnet/alonzo.json` - Alonzo era configuration
+- `devnet/byron.json` - Byron era configuration
+- `devnet/conway.json` - Conway era configuration
+- `devnet/shelley.json` - Shelley era configuration
+- `devnet/cshell.toml` - Additional configuration
+
+**Usage:**
+```bash
+# Start the local devnet
+npm run devnet:start
+
+# In another terminal, explore the devnet from tx3 folder
+cd tx3
+trix explore
+```
+
 ## Environment Configuration
 
 For new projects, a `.env.local` file is created:
@@ -130,10 +158,13 @@ NEXT_PUBLIC_TRP_API_KEY=""
   "scripts": {
     "tx3:generate": "node scripts/generate-tx3.mjs",
     "watch:tx3": "nodemon --watch tx3 --ext tx3 --exec \"npm run tx3:generate\"",
-    "dev": "concurrently \"next dev --turbopack\" \"npm run watch:tx3\""
+    "dev": "concurrently \"next dev --turbopack\" \"npm run watch:tx3\"",
+    "devnet:start": "cd devnet && dolos daemon"
   }
 }
 ```
+
+**Note:** The `devnet:start` script is only added if devnet setup is selected during installation.
 
 ## Safety Features
 
@@ -153,7 +184,8 @@ After running `init`:
 2. Update `.env.local` with your TX3 endpoint and API key
 3. Update `tx3/trix.toml` with your TX3 configuration  
 4. Add your TX3 code to `tx3/main.tx3`
-5. Run `npm run dev` to start development
+5. **Optional**: Start local devnet with `npm run devnet:start`
+6. Run `npm run dev` to start development
 
 ### For Existing Projects
 
@@ -162,13 +194,23 @@ After running `install`:
 1. Create `.env.local` with TX3 environment variables
 2. Update `tx3/trix.toml` with your TX3 configuration
 3. Add your TX3 code to `tx3/main.tx3`
-4. Run `npm run dev` to start development
+4. **Optional**: Start local devnet with `npm run devnet:start` (if devnet was set up)
+5. Run `npm run dev` to start development
+
+### Development with Devnet
+
+If you included devnet setup:
+
+1. **Start devnet**: `npm run devnet:start` (runs dolos daemon)
+2. **Explore devnet**: In another terminal, run `cd tx3 && trix explore`
+3. **Develop**: Run `npm run dev` for your Next.js app
 
 The development server will:
 - Run your Next.js app with Turbopack
 - Watch for changes in TX3 files
 - Automatically regenerate TX3 bindings when files change
 - Display TX3 demo page (for new projects)
+- Connect to your local devnet (if configured)
 
 ## Package Manager Support
 
@@ -256,6 +298,14 @@ If trix installation fails:
 - Ensure you have curl installed
 - Try manual installation using the commands in the Trix Installation section
 - Installation will continue even if trix fails - you can install it manually later
+
+### Devnet Issues
+If devnet setup fails or doesn't work:
+- Ensure trix is properly installed (`trix --version`)
+- Check that dolos is installed and available in PATH
+- Verify devnet configuration files exist in `devnet/` folder
+- Try running `npm run devnet:start` manually to see error messages
+- Use `cd tx3 && trix explore` to interact with the devnet once it's running
 
 ## License
 

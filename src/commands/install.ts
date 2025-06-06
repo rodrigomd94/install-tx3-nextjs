@@ -5,6 +5,7 @@ import { ProjectValidator } from '../utils/validation.js';
 import { PackageUtils } from '../utils/package-utils.js';
 import { FileUtils, BackupEntry } from '../utils/file-utils.js';
 import { TrixInstaller } from '../utils/trix-installer.js';
+import { DevnetInstaller } from '../utils/devnet-installer.js';
 import { generateScriptTemplate } from '../templates/generate-script.js';
 import { trixTomlTemplate } from '../templates/trix-toml.js';
 import { mainTx3Template } from '../templates/main-tx3.js';
@@ -83,6 +84,22 @@ export async function installCommand(options: InstallOptions = {}): Promise<void
       installTrix = shouldInstallTrix;
     } else {
       console.log(chalk.green('✅ trix is already installed'));
+    }
+  }
+
+  // Ask about devnet setup if trix is available (only for non-verbose mode)
+  let includeDevnet = false;
+  if (!options.verbose) {
+    const currentTrixInstalled = TrixInstaller.checkTrixInstalled();
+    const hasTrix = currentTrixInstalled || installTrix;
+    if (hasTrix) {
+      const { shouldIncludeDevnet } = await inquirer.prompt([{
+        type: 'confirm',
+        name: 'shouldIncludeDevnet',
+        message: 'Include devnet setup for local testing? (Adds dolos configuration)',
+        default: true
+      }]);
+      includeDevnet = shouldIncludeDevnet;
     }
   }
 
@@ -220,6 +237,30 @@ export async function installCommand(options: InstallOptions = {}): Promise<void
       console.log(chalk.green('📁 TX3 files created'));
     }
 
+    // Set up devnet if requested
+    if (includeDevnet) {
+      if (spinner) {
+        spinner.start('🌐 Setting up devnet configuration...');
+      } else {
+        console.log(chalk.blue('🌐 Setting up devnet configuration...'));
+      }
+      
+      try {
+        setupDevnet();
+        if (spinner) {
+          spinner.succeed('🌐 Devnet configuration created');
+        } else {
+          console.log(chalk.green('🌐 Devnet configuration created'));
+        }
+      } catch (error) {
+        if (spinner) {
+          spinner.warn('⚠️ Devnet setup failed, but continuing with installation');
+        } else {
+          console.log(chalk.yellow('⚠️ Devnet setup failed, but continuing with installation'));
+        }
+      }
+    }
+
     console.log(chalk.green('🎉 TX3 installation completed successfully!'));
     console.log();
     console.log(chalk.blue('Next steps:'));
@@ -259,6 +300,14 @@ async function showDryRunPreview(): Promise<void> {
     console.log(chalk.yellow('🔧 trix installation:'));
     console.log('  • Install tx3up installer');
     console.log('  • Run tx3up to install trix');
+    console.log();
+  }
+
+  // Show devnet setup status
+  if (trixInstalled || !trixInstalled) { // Will be prompted if trix available
+    console.log(chalk.yellow('🌐 devnet setup (will be prompted if trix available):'));
+    console.log('  • Copy devnet configuration files');
+    console.log('  • Add devnet:start script to package.json');
     console.log();
   }
   
@@ -339,4 +388,20 @@ async function createTx3Files(): Promise<void> {
 
   // Create generate script
   FileUtils.writeFile('scripts/generate-tx3.mjs', generateScriptTemplate);
+}
+
+function setupDevnet(): void {
+  try {
+    // Copy devnet folder to project
+    DevnetInstaller.copyDevnetFolder('devnet');
+    
+    // Add devnet:start script to package.json
+    const packageJson = PackageUtils.readPackageJson();
+    packageJson.scripts = packageJson.scripts || {};
+    packageJson.scripts['devnet:start'] = 'cd devnet && dolos daemon';
+    PackageUtils.writePackageJson(packageJson);
+    
+  } catch (error) {
+    throw new Error(`Failed to setup devnet: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
