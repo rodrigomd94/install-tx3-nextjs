@@ -1,90 +1,126 @@
 # TX3 Installer CLI
 
-A CLI tool that adds TX3 capabilities to existing Next.js projects, similar to how Shadcn UI adds components to projects. The tool is non-destructive and works as an "installer" rather than a project generator.
+A CLI tool that creates new Next.js projects with TX3 capabilities or adds TX3 to existing Next.js projects. Features shadcn/ui integration, optional trix installation, complete TX3 setup, and a working demo page out of the box.
 
 ## Installation
 
 ```bash
 # Install globally
-npm install -g install-tx3
+npm install -g install-tx3-nextjs
 
 # Or use directly with npx
-npx install-tx3
+npx install-tx3-nextjs
 ```
 
 ## Usage
 
+### Create New Project (Recommended)
+
+Create a new Next.js project with TX3, shadcn/ui, and a working demo:
+
+```bash
+# Create new project with TX3 setup
+npx install-tx3-nextjs init my-tx3-app
+
+# Preview what will be created
+npx install-tx3-nextjs init my-tx3-app --dry-run
+```
+
+### Add TX3 to Existing Project
+
 Navigate to your existing Next.js project directory and run:
 
 ```bash
-# Basic installation
-npx install-tx3
-
-# Or if installed globally
-install-tx3
-
-# Check installation status
-install-tx3 --status
+# Add TX3 to existing project
+npx install-tx3-nextjs install
 
 # Preview changes without applying them
-install-tx3 install --dry-run
+npx install-tx3-nextjs install --dry-run
 
 # Force reinstall
-install-tx3 install --force
+npx install-tx3-nextjs install --force
+```
+
+### Additional Commands
+
+```bash
+# Check installation status (coming soon)
+npx install-tx3-nextjs --status
 
 # Remove TX3 from project (coming soon)
-install-tx3 --remove
+npx install-tx3-nextjs --remove
 ```
 
 ## What it does
 
-The installer automatically:
+### For New Projects (`init` command)
 
-1. **Validates** your Next.js project
-2. **Installs** required packages: `tx3-sdk`, `tx3-trp`, `nodemon`, `concurrently`
-3. **Updates** your `next.config.ts/js` with TX3 webpack configuration
-4. **Adds** TX3 scripts to your `package.json`
-5. **Creates** TX3 files and directories:
+Creates a complete TX3-enabled Next.js project:
+
+1. **Optionally installs** trix via tx3up (recommended)
+2. **Creates** Next.js project with optimal configuration
+3. **Initializes** shadcn/ui with essential components
+4. **Installs** TX3 packages: `tx3-sdk`, `tx3-trp` (regular deps)
+5. **Installs** dev dependencies: `glob`, `dotenv`, `nodemon`, `concurrently`
+6. **Updates** `tsconfig.json` with TX3 path mappings (`@tx3/*`, `@tx3`)
+7. **Adds** TX3 scripts to `package.json`
+8. **Creates** TX3 files and directories:
    - `tx3/trix.toml` - TX3 configuration
    - `tx3/main.tx3` - Main TX3 source file
    - `scripts/generate-tx3.mjs` - TX3 generation script
+9. **Replaces** `app/page.tsx` with TX3 demo page
+10. **Creates** `.env.local` with TX3 environment variables
 
-## Next.js Configuration Changes
+### For Existing Projects (`install` command)
 
-The installer adds this webpack configuration to your `next.config.ts`:
+Adds TX3 capabilities to existing Next.js projects:
 
-```typescript
-webpack: (config) => {
-  // Add alias for @tx3
-  config.resolve.alias = {
-    ...config.resolve.alias,
-    '@tx3': './node_modules/.tx3',
-  };
+1. **Validates** your Next.js project
+2. **Optionally installs** trix via tx3up (recommended)
+3. **Installs** TX3 packages and dev dependencies
+4. **Updates** `tsconfig.json` with TX3 path mappings
+5. **Adds** TX3 scripts to your `package.json`
+6. **Creates** TX3 files and directories
+7. **Preserves** all existing functionality
 
-  // Configure webpack to handle TypeScript files in .tx3 directory
-  config.module.rules.push({
-    test: /\.ts$/,
-    include: /node_modules\/\.tx3/,
-    use: [
-      {
-        loader: 'ts-loader',
-        options: {
-          transpileOnly: true,
-          compilerOptions: {
-            module: 'esnext',
-            target: 'es2017',
-            moduleResolution: 'node',
-            esModuleInterop: true,
-            allowSyntheticDefaultImports: true,
-            skipLibCheck: true,
-          },
-        },
-      },
-    ],
-  });
+## TypeScript Configuration
 
-  return config;
-},
+The installer adds TX3 path mappings to your `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "@tx3/*": ["./tx3/bindings/*"],
+      "@tx3": ["./tx3/bindings"]
+    }
+  }
+}
+```
+
+## Trix Installation
+
+The installer can optionally install the trix (TX3 package manager) via tx3up:
+
+- **Automatic detection**: Checks if trix is already installed
+- **Interactive prompt**: Asks if you want to install trix (defaults to yes)
+- **Non-blocking**: Continues with setup even if trix installation fails
+- **Manual fallback**: Provides manual installation instructions if needed
+
+**Manual installation commands:**
+```bash
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/tx3-lang/up/releases/latest/download/tx3up-installer.sh | sh
+tx3up
+```
+
+## Environment Configuration
+
+For new projects, a `.env.local` file is created:
+
+```bash
+# TX3 Protocol Configuration
+NEXT_PUBLIC_TRP_ENDPOINT="http://localhost:8164"
+NEXT_PUBLIC_TRP_API_KEY=""
 ```
 
 ## Package.json Scripts Added
@@ -109,16 +145,30 @@ webpack: (config) => {
 
 ## Development Workflow
 
-After installation:
+### For New Projects
 
-1. Update `tx3/trix.toml` with your TX3 configuration
-2. Add your TX3 code to `tx3/main.tx3`
-3. Run `npm run dev` to start development with TX3 file watching
+After running `init`:
+
+1. `cd your-project-name`
+2. Update `.env.local` with your TX3 endpoint and API key
+3. Update `tx3/trix.toml` with your TX3 configuration  
+4. Add your TX3 code to `tx3/main.tx3`
+5. Run `npm run dev` to start development
+
+### For Existing Projects
+
+After running `install`:
+
+1. Create `.env.local` with TX3 environment variables
+2. Update `tx3/trix.toml` with your TX3 configuration
+3. Add your TX3 code to `tx3/main.tx3`
+4. Run `npm run dev` to start development
 
 The development server will:
-- Run your Next.js app
+- Run your Next.js app with Turbopack
 - Watch for changes in TX3 files
 - Automatically regenerate TX3 bindings when files change
+- Display TX3 demo page (for new projects)
 
 ## Package Manager Support
 
@@ -129,16 +179,30 @@ The installer automatically detects and uses your project's package manager:
 
 ## Requirements
 
-- Node.js 16+
-- Existing Next.js project
+- Node.js 18+ (recommended for latest features)
 - Supported package managers: npm, yarn, pnpm
+- For `install` command: Existing Next.js project
 
 ## Examples
 
-### Basic Installation
+### Create New Project
+```bash
+npx install-tx3-nextjs init my-tx3-app
+
+# Output:
+# 🚀 Initializing new Next.js project with TX3...
+# 🏗️ Creating Next.js project with shadcn/ui...
+# 📁 Project created in: my-tx3-app
+# 🔧 Installing TX3 capabilities...
+# 📄 Creating TX3 example page...
+# ⚙️ Creating environment configuration...
+# 🎉 Project created successfully in 'my-tx3-app'!
+```
+
+### Add to Existing Project
 ```bash
 cd my-existing-nextjs-app
-npx install-tx3
+npx install-tx3-nextjs install
 
 # Output:
 # 🔍 Checking Next.js project...
@@ -146,35 +210,52 @@ npx install-tx3
 # 📦 Using package manager: npm
 # 📝 Creating backup...
 # 🔧 Installing TX3 packages...
-# ⚙️ Updating next.config.ts...
+# ⚙️ Updating TypeScript configuration...
 # 📜 Adding TX3 scripts...
 # 📁 Creating TX3 files...
 # 🎉 TX3 installation completed successfully!
 ```
 
-### Dry Run Preview
+### Preview Changes
 ```bash
-install-tx3 install --dry-run
+npx install-tx3-nextjs init my-app --dry-run
+npx install-tx3-nextjs install --dry-run
 
-# Shows preview of all changes without applying them
+# Shows preview of all actions without applying them
 ```
 
 ## Troubleshooting
 
-### "Not a Next.js project" Error
+### "Not a Next.js project" Error (install command only)
 Ensure you're in a directory with:
 - A `package.json` file
 - Next.js as a dependency
 - Typical Next.js project structure (`pages/`, `app/`, or `next.config.*`)
 
-### Webpack Configuration Conflicts
-If you have existing webpack configuration, the installer will attempt to merge configurations. For complex setups, manual review may be needed.
+### Node.js Version Compatibility
+If you encounter package version conflicts:
+- Ensure you're using Node.js 18+
+- Some dependencies require newer Node.js versions
 
 ### Package Installation Failures
 Ensure you have:
 - A stable internet connection
 - Proper npm/yarn/pnpm configuration
 - Sufficient disk space
+- Correct permissions for global package installation
+
+### TX3 Demo Page Not Working
+If the demo page shows errors:
+- Check `.env.local` configuration
+- Ensure `NEXT_PUBLIC_TRP_ENDPOINT` points to a valid TX3 endpoint
+- Verify TX3 packages are properly installed
+
+### Trix Installation Issues
+If trix installation fails:
+- Check internet connection for downloading tx3up
+- Ensure you have curl installed
+- Try manual installation using the commands in the Trix Installation section
+- Installation will continue even if trix fails - you can install it manually later
 
 ## License
 
@@ -182,4 +263,4 @@ MIT
 
 ## Contributing
 
-Issues and pull requests welcome on [GitHub](https://github.com/txpipe/install-tx3).
+Issues and pull requests welcome on [GitHub](https://github.com/txpipe/install-tx3-nextjs).

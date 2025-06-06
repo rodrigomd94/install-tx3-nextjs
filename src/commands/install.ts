@@ -4,6 +4,7 @@ import inquirer from 'inquirer';
 import { ProjectValidator } from '../utils/validation.js';
 import { PackageUtils } from '../utils/package-utils.js';
 import { FileUtils, BackupEntry } from '../utils/file-utils.js';
+import { TrixInstaller } from '../utils/trix-installer.js';
 import { generateScriptTemplate } from '../templates/generate-script.js';
 import { trixTomlTemplate } from '../templates/trix-toml.js';
 import { mainTx3Template } from '../templates/main-tx3.js';
@@ -67,6 +68,24 @@ export async function installCommand(options: InstallOptions = {}): Promise<void
     return;
   }
 
+  // Check if trix is already installed (only for non-verbose mode)
+  let installTrix = false;
+  if (!options.verbose) {
+    const trixInstalled = TrixInstaller.checkTrixInstalled();
+    
+    if (!trixInstalled) {
+      const { shouldInstallTrix } = await inquirer.prompt([{
+        type: 'confirm',
+        name: 'shouldInstallTrix',
+        message: 'Install trix (TX3 compiler) via tx3up? (Recommended for local development)',
+        default: true
+      }]);
+      installTrix = shouldInstallTrix;
+    } else {
+      console.log(chalk.green('✅ trix is already installed'));
+    }
+  }
+
   // Confirm installation
   const { confirmInstall } = await inquirer.prompt([{
     type: 'confirm',
@@ -84,6 +103,31 @@ export async function installCommand(options: InstallOptions = {}): Promise<void
   let spinner = options.verbose ? null : ora();
 
   try {
+    // Install trix if requested
+    if (installTrix) {
+      if (spinner) {
+        spinner.start('🔧 Installing trix via tx3up...');
+      } else {
+        console.log(chalk.blue('🔧 Installing trix via tx3up...'));
+      }
+      
+      try {
+        await TrixInstaller.installTrix(!spinner);
+        if (spinner) {
+          spinner.succeed('🔧 trix installed successfully');
+        } else {
+          console.log(chalk.green('🔧 trix installed successfully'));
+        }
+      } catch (error) {
+        if (spinner) {
+          spinner.warn('⚠️ trix installation failed, but continuing with TX3 setup');
+        } else {
+          console.log(chalk.yellow('⚠️ trix installation failed, but continuing with TX3 setup'));
+        }
+        console.log(chalk.yellow(`You can install trix manually later with: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/tx3-lang/up/releases/latest/download/tx3up-installer.sh | sh && tx3up`));
+      }
+    }
+
     // Create backup
     if (spinner) {
       spinner.start('📝 Creating backup...');
@@ -208,6 +252,15 @@ export async function installCommand(options: InstallOptions = {}): Promise<void
 async function showDryRunPreview(): Promise<void> {
   console.log(chalk.blue('Changes that would be made:'));
   console.log();
+  
+  // Check trix installation status
+  const trixInstalled = TrixInstaller.checkTrixInstalled();
+  if (!trixInstalled) {
+    console.log(chalk.yellow('🔧 trix installation:'));
+    console.log('  • Install tx3up installer');
+    console.log('  • Run tx3up to install trix');
+    console.log();
+  }
   
   console.log(chalk.yellow('📦 Packages to install:'));
   const requiredPackages = ['tx3-sdk', 'tx3-trp'];

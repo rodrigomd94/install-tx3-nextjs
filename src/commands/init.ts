@@ -5,6 +5,8 @@ import { execSync } from 'child_process';
 import { FileUtils } from '../utils/file-utils.js';
 import { installCommand } from './install.js';
 import { examplePageTemplate } from '../templates/example-page.js';
+import { envLocalTemplate } from '../templates/env-local.js';
+import { TrixInstaller } from '../utils/trix-installer.js';
 
 interface InitOptions {
   projectName?: string;
@@ -41,9 +43,26 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
     process.exit(1);
   }
 
+  // Check if trix is already installed
+  const trixInstalled = TrixInstaller.checkTrixInstalled();
+  
+  // Ask about trix installation if not already installed (unless dry run)
+  let installTrix = false;
+  if (!trixInstalled && !options.dryRun) {
+    const { shouldInstallTrix } = await inquirer.prompt([{
+      type: 'confirm',
+      name: 'shouldInstallTrix',
+      message: 'Install trix (TX3 compiler) via tx3up? (Recommended for local development)',
+      default: true
+    }]);
+    installTrix = shouldInstallTrix;
+  } else if (trixInstalled && !options.dryRun) {
+    console.log(chalk.green('✅ trix is already installed'));
+  }
+
   if (options.dryRun) {
     console.log(chalk.yellow('🔍 DRY RUN - No changes will be made'));
-    await showInitDryRunPreview(projectName!);
+    await showInitDryRunPreview(projectName!, trixInstalled);
     return;
   }
 
@@ -63,33 +82,55 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
   let spinner = ora();
 
   try {
-    // Step 1: Initialize Next.js project with shadcn
+    // Step 1: Install trix if requested
+    if (installTrix) {
+      spinner.start('🔧 Installing trix via tx3up...');
+      try {
+        await TrixInstaller.installTrix();
+        spinner.succeed('🔧 trix installed successfully');
+      } catch (error) {
+        spinner.warn('⚠️ trix installation failed, but continuing with project setup');
+        console.log(chalk.yellow(`You can install trix manually later with: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/tx3-lang/up/releases/latest/download/tx3up-installer.sh | sh && tx3up`));
+      }
+    }
+
+    // Step 2: Initialize Next.js project with shadcn
     spinner.start('🏗️  Creating Next.js project with shadcn/ui...');
     await initializeShadcnProject(projectName!);
     spinner.succeed('🏗️  Next.js project with shadcn/ui created');
 
-    // Step 2: Change to the project directory
+    // Step 3: Change to the project directory
     console.log(chalk.blue(`📁 Project created in: ${projectName}`));
     process.chdir(projectName!);
 
-    // Step 3: Install TX3
+    // Step 4: Install TX3
     spinner.stop();
     console.log(chalk.blue('🔧 Installing TX3 capabilities...'));
     await installCommand({ force: true, fresh: true, verbose: true });
     console.log(chalk.green('🔧 TX3 capabilities installed'));
 
-    // Step 4: Replace default page.tsx with TX3 example
+    // Step 5: Replace default page.tsx with TX3 example
     console.log(chalk.blue('📄 Creating TX3 example page...'));
     replaceDefaultPage();
     console.log(chalk.green('📄 TX3 example page created'));
+
+    // Step 6: Create .env.local file with TX3 configuration
+    console.log(chalk.blue('⚙️ Creating environment configuration...'));
+    createEnvFile();
+    console.log(chalk.green('⚙️ Environment configuration created'));
 
     console.log(chalk.green(`🎉 Project created successfully in '${projectName}'!`));
     console.log();
     console.log(chalk.blue('Next steps:'));
     console.log(chalk.white(`1. cd ${projectName}`));
-    console.log(chalk.white('2. Update tx3/trix.toml with your configuration'));
-    console.log(chalk.white('3. Add your TX3 code to tx3/main.tx3'));
-    console.log(chalk.white('4. Run "npm run dev" to start development'));
+    console.log(chalk.white('2. Update .env.local with your TX3 endpoint and API key'));
+    console.log(chalk.white('3. Update tx3/trix.toml with your configuration'));
+    console.log(chalk.white('4. Add your TX3 code to tx3/main.tx3'));
+    console.log(chalk.white('5. Run "npm run dev" to start development with TX3 demo'));
+    console.log();
+    console.log(chalk.blue('Environment Configuration:'));
+    console.log(chalk.white('• NEXT_PUBLIC_TRP_ENDPOINT: TX3 TRP endpoint (default: http://localhost:8164)'));
+    console.log(chalk.white('• NEXT_PUBLIC_TRP_API_KEY: Optional API key for TX3 authentication'));
 
   } catch (error) {
     spinner.fail('❌ Project initialization failed');
@@ -146,9 +187,35 @@ function replaceDefaultPage(): void {
   }
 }
 
-async function showInitDryRunPreview(projectName: string): Promise<void> {
+function createEnvFile(): void {
+  try {
+    // Create .env.local file with TX3 configuration
+    const envPath = '.env.local';
+    if (!FileUtils.fileExists(envPath)) {
+      FileUtils.writeFile(envPath, envLocalTemplate);
+    } else {
+      console.log(chalk.yellow(`⚠️ ${envPath} already exists, skipping creation`));
+    }
+  } catch (error) {
+    console.log(chalk.yellow(`⚠️ Failed to create environment file: ${error instanceof Error ? error.message : 'Unknown error'}`));
+  }
+}
+
+async function showInitDryRunPreview(projectName: string, trixInstalled: boolean): Promise<void> {
   console.log(chalk.blue('Actions that would be taken:'));
   console.log();
+  
+  // Show trix installation status
+  if (!trixInstalled) {
+    console.log(chalk.yellow('🔧 trix installation (will be prompted):'));
+    console.log('  • Install tx3up installer');
+    console.log('  • Run tx3up to install trix');
+    console.log();
+  } else {
+    console.log(chalk.green('🔧 trix installation:'));
+    console.log('  • trix is already installed');
+    console.log();
+  }
   
   console.log(chalk.yellow('📁 Project creation:'));
   console.log(`  • Run: npx create-next-app@latest ${projectName} --app --tailwind --eslint --typescript --no-src-dir --no-import-alias --turbopack `);
@@ -165,4 +232,5 @@ async function showInitDryRunPreview(projectName: string): Promise<void> {
   console.log('  • Create tx3/ directory and files');
   console.log('  • Create scripts/generate-tx3.mjs');
   console.log('  • Replace app/page.tsx with TX3 example page');
+  console.log('  • Create .env.local with TX3 environment variables');
 }
