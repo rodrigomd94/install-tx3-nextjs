@@ -4,6 +4,7 @@ import inquirer from 'inquirer';
 import { execSync } from 'child_process';
 import { FileUtils } from '../utils/file-utils.js';
 import { installCommand } from './install.js';
+import { examplePageTemplate } from '../templates/example-page.js';
 
 interface InitOptions {
   projectName?: string;
@@ -77,6 +78,11 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
     await installCommand({ force: true, fresh: true, verbose: true });
     console.log(chalk.green('🔧 TX3 capabilities installed'));
 
+    // Step 4: Replace default page.tsx with TX3 example
+    console.log(chalk.blue('📄 Creating TX3 example page...'));
+    replaceDefaultPage();
+    console.log(chalk.green('📄 TX3 example page created'));
+
     console.log(chalk.green(`🎉 Project created successfully in '${projectName}'!`));
     console.log();
     console.log(chalk.blue('Next steps:'));
@@ -126,6 +132,20 @@ async function initializeShadcnProject(projectName: string): Promise<void> {
   }
 }
 
+function replaceDefaultPage(): void {
+  try {
+    // Replace app/page.tsx with our TX3 example page
+    const pagePath = 'app/page.tsx';
+    if (FileUtils.fileExists(pagePath)) {
+      FileUtils.writeFile(pagePath, examplePageTemplate);
+    } else {
+      console.log(chalk.yellow(`⚠️ Could not find ${pagePath} to replace`));
+    }
+  } catch (error) {
+    console.log(chalk.yellow(`⚠️ Failed to replace default page: ${error instanceof Error ? error.message : 'Unknown error'}`));
+  }
+}
+
 async function showInitDryRunPreview(projectName: string): Promise<void> {
   console.log(chalk.blue('Actions that would be taken:'));
   console.log();
@@ -144,4 +164,5 @@ async function showInitDryRunPreview(projectName: string): Promise<void> {
   console.log('  • Update tsconfig.json with TX3 path mappings');
   console.log('  • Create tx3/ directory and files');
   console.log('  • Create scripts/generate-tx3.mjs');
+  console.log('  • Replace app/page.tsx with TX3 example page');
 }
