@@ -12,10 +12,13 @@ interface InstallOptions {
   dryRun?: boolean;
   force?: boolean;
   fresh?: boolean; // For fresh projects created by init command
+  verbose?: boolean; // Show more detailed output
 }
 
 export async function installCommand(options: InstallOptions = {}): Promise<void> {
-  console.log(chalk.blue('🔍 Checking Next.js project...'));
+  if (!options.verbose) {
+    console.log(chalk.blue('🔍 Checking Next.js project...'));
+  }
 
   // Validate project - use different validation for fresh projects
   const validation = options.fresh 
@@ -78,11 +81,15 @@ export async function installCommand(options: InstallOptions = {}): Promise<void
   }
 
   const backups: BackupEntry[] = [];
-  let spinner = ora();
+  let spinner = options.verbose ? null : ora();
 
   try {
     // Create backup
-    spinner.start('📝 Creating backup...');
+    if (spinner) {
+      spinner.start('📝 Creating backup...');
+    } else {
+      console.log(chalk.blue('📝 Creating backup...'));
+    }
     FileUtils.ensureBackupDir();
     
     // Backup files that will be modified
@@ -94,10 +101,18 @@ export async function installCommand(options: InstallOptions = {}): Promise<void
     for (const file of filesToBackup) {
       backups.push(FileUtils.backupFile(file));
     }
-    spinner.succeed('📝 Backup created');
+    if (spinner) {
+      spinner.succeed('📝 Backup created');
+    } else {
+      console.log(chalk.green('📝 Backup created'));
+    }
 
     // Install packages
-    spinner.start('🔧 Installing TX3 packages...');
+    if (spinner) {
+      spinner.start('🔧 Installing TX3 packages...');
+    } else {
+      console.log(chalk.blue('🔧 Installing TX3 packages...'));
+    }
     const requiredPackages = ['tx3-sdk', 'tx3-trp'];
     const requiredDevPackages = ['glob', 'dotenv', 'nodemon', 'concurrently'];
     
@@ -111,27 +126,55 @@ export async function installCommand(options: InstallOptions = {}): Promise<void
     if (missingDevPackages.length > 0) {
       PackageUtils.installPackages(missingDevPackages, true);
     }
-    spinner.succeed('🔧 TX3 packages installed');
+    if (spinner) {
+      spinner.succeed('🔧 TX3 packages installed');
+    } else {
+      console.log(chalk.green('🔧 TX3 packages installed'));
+    }
 
     // Update tsconfig.json paths
-    spinner.start('⚙️ Updating TypeScript configuration...');
+    if (spinner) {
+      spinner.start('⚙️ Updating TypeScript configuration...');
+    } else {
+      console.log(chalk.blue('⚙️ Updating TypeScript configuration...'));
+    }
     await updateTsConfig();
-    spinner.succeed('⚙️ TypeScript configuration updated');
+    if (spinner) {
+      spinner.succeed('⚙️ TypeScript configuration updated');
+    } else {
+      console.log(chalk.green('⚙️ TypeScript configuration updated'));
+    }
 
     // Add package.json scripts
-    spinner.start('📜 Adding TX3 scripts...');
+    if (spinner) {
+      spinner.start('📜 Adding TX3 scripts...');
+    } else {
+      console.log(chalk.blue('📜 Adding TX3 scripts...'));
+    }
     const packageJson = PackageUtils.addScripts({
       'tx3:generate': 'node scripts/generate-tx3.mjs',
       'watch:tx3': 'nodemon --watch tx3 --ext tx3 --exec "npm run tx3:generate"',
       'dev': 'concurrently "next dev --turbopack" "npm run watch:tx3"'
     });
     PackageUtils.writePackageJson(packageJson);
-    spinner.succeed('📜 TX3 scripts added');
+    if (spinner) {
+      spinner.succeed('📜 TX3 scripts added');
+    } else {
+      console.log(chalk.green('📜 TX3 scripts added'));
+    }
 
     // Create TX3 files and directories
-    spinner.start('📁 Creating TX3 files...');
+    if (spinner) {
+      spinner.start('📁 Creating TX3 files...');
+    } else {
+      console.log(chalk.blue('📁 Creating TX3 files...'));
+    }
     await createTx3Files();
-    spinner.succeed('📁 TX3 files created');
+    if (spinner) {
+      spinner.succeed('📁 TX3 files created');
+    } else {
+      console.log(chalk.green('📁 TX3 files created'));
+    }
 
     console.log(chalk.green('🎉 TX3 installation completed successfully!'));
     console.log();
@@ -141,7 +184,11 @@ export async function installCommand(options: InstallOptions = {}): Promise<void
     console.log(chalk.white('3. Run "npm run dev" to start development with TX3'));
 
   } catch (error) {
-    spinner.fail('❌ Installation failed');
+    if (spinner) {
+      spinner.fail('❌ Installation failed');
+    } else {
+      console.log(chalk.red('❌ Installation failed'));
+    }
     console.error(chalk.red(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`));
     
     // Rollback changes

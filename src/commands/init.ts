@@ -2,7 +2,6 @@ import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
 import { execSync } from 'child_process';
-import fs from 'fs';
 import { FileUtils } from '../utils/file-utils.js';
 import { installCommand } from './install.js';
 
@@ -73,9 +72,10 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
     process.chdir(projectName!);
 
     // Step 3: Install TX3
-    spinner.start('🔧 Installing TX3 capabilities...');
-    await installCommand({ force: true, fresh: true });
-    spinner.succeed('🔧 TX3 capabilities installed');
+    spinner.stop();
+    console.log(chalk.blue('🔧 Installing TX3 capabilities...'));
+    await installCommand({ force: true, fresh: true, verbose: true });
+    console.log(chalk.green('🔧 TX3 capabilities installed'));
 
     console.log(chalk.green(`🎉 Project created successfully in '${projectName}'!`));
     console.log();
@@ -104,21 +104,25 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
 
 async function initializeShadcnProject(projectName: string): Promise<void> {
   try {
-    // Create the project directory first
-    fs.mkdirSync(projectName, { recursive: true });
+    // Step 1: Create Next.js project
+    const createCommand = `npx create-next-app@latest ${projectName} --app --tailwind --eslint --typescript --no-src-dir --no-import-alias --turbopack `;
+    console.log(chalk.dim(`Running: ${createCommand}`));
     
-    // Run shadcn init command inside the project directory
-    // This will create a new Next.js project in the specified directory
-    const command = `npx shadcn@latest init -t next -y`;
-    console.log(chalk.dim(`Running: ${command} (in ${projectName})`));
-    
-    // Use stdio: 'inherit' to allow interactive prompts from shadcn
-    execSync(command, { 
+    execSync(createCommand, { 
       stdio: 'inherit',
-      cwd: projectName // Run inside the project directory
+      cwd: process.cwd()
+    });
+
+    // Step 2: Initialize shadcn/ui in the new project
+    const initCommand = `npx shadcn@latest init -y button card badge alert separator label textarea `;
+    console.log(chalk.dim(`Running: ${initCommand} (in ${projectName})`));
+    
+    execSync(initCommand, { 
+      stdio: 'inherit',
+      cwd: projectName // Run inside the newly created project directory
     });
   } catch (error) {
-    throw new Error(`Failed to initialize shadcn project: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to create Next.js project with shadcn: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -127,9 +131,9 @@ async function showInitDryRunPreview(projectName: string): Promise<void> {
   console.log();
   
   console.log(chalk.yellow('📁 Project creation:'));
-  console.log(`  • Create directory: ${projectName}`);
-  console.log(`  • Run: npx shadcn@latest init -t next -y (in ${projectName})`);
-  console.log(`  • This will create a new Next.js project with shadcn/ui`);
+  console.log(`  • Run: npx create-next-app@latest ${projectName} --app --tailwind --eslint --typescript --no-src-dir --no-import-alias --turbopack `);
+  console.log(`  • Run: npx shadcn@latest init -y button card badge alert separator label textarea  (in ${projectName})`);
+  console.log(`  • This will create a Next.js project and add shadcn/ui`);
   console.log(`  • Change to directory: ${projectName}`);
   
   console.log();
