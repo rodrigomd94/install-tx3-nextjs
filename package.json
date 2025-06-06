@@ -1,5 +1,5 @@
 {
-  "name": "install-tx3-nexjs",
+  "name": "install-tx3-nextjs",
   "version": "1.0.0",
   "description": "CLI tool to create new Next.js projects with TX3 capabilities or add TX3 to existing projects",
   "type": "module",
@@ -21,6 +21,14 @@
   ],
   "author": "TxPipe",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rodrigomd94/install-tx3-nextjs.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rodrigomd94/install-tx3-nextjs/issues"
+  },
+  "homepage": "https://github.com/rodrigomd94/install-tx3-nextjs#readme",
   "dependencies": {
     "commander": "^11.0.0",
     "chalk": "^5.3.0",
@@ -37,6 +45,7 @@
     "node": ">=16.0.0"
   },
   "files": [
-    "dist/**/*"
+    "dist/**/*",
+    "devnet/**/*"
   ]
 }
