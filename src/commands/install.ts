@@ -6,9 +6,7 @@ import { PackageUtils } from '../utils/package-utils.js';
 import { FileUtils, BackupEntry } from '../utils/file-utils.js';
 import { TrixInstaller } from '../utils/trix-installer.js';
 import { DevnetInstaller } from '../utils/devnet-installer.js';
-import { generateScriptTemplate } from '../templates/generate-script.js';
-import { trixTomlTemplate } from '../templates/trix-toml.js';
-import { mainTx3Template } from '../templates/main-tx3.js';
+import { withTX3Template } from '../templates/next-config.js';
 
 interface InstallOptions {
   dryRun?: boolean;
@@ -156,7 +154,9 @@ export async function installCommand(options: InstallOptions = {}): Promise<void
     // Backup files that will be modified
     const filesToBackup = [
       'package.json',
-      'tsconfig.json'
+      'next.config.js',
+      'next.config.mjs', 
+      'next.config.ts'
     ].filter(file => FileUtils.fileExists(file));
 
     for (const file of filesToBackup) {
@@ -174,18 +174,12 @@ export async function installCommand(options: InstallOptions = {}): Promise<void
     } else {
       console.log(chalk.blue('🔧 Installing TX3 packages...'));
     }
-    const requiredPackages = ['tx3-sdk', 'tx3-trp'];
-    const requiredDevPackages = ['glob', 'dotenv', 'nodemon', 'concurrently'];
+    const requiredPackages = ['tx3-sdk', 'tx3-trp', 'next-tx3'];
     
     const missingPackages = PackageUtils.getMissingPackages(requiredPackages);
-    const missingDevPackages = PackageUtils.getMissingPackages(requiredDevPackages);
     
     if (missingPackages.length > 0) {
       PackageUtils.installPackages(missingPackages);
-    }
-    
-    if (missingDevPackages.length > 0) {
-      PackageUtils.installPackages(missingDevPackages, true);
     }
     if (spinner) {
       spinner.succeed('🔧 TX3 packages installed');
@@ -193,49 +187,20 @@ export async function installCommand(options: InstallOptions = {}): Promise<void
       console.log(chalk.green('🔧 TX3 packages installed'));
     }
 
-    // Update tsconfig.json paths
+
+    // Update Next.js configuration
     if (spinner) {
-      spinner.start('⚙️ Updating TypeScript configuration...');
+      spinner.start('⚙️ Updating Next.js configuration...');
     } else {
-      console.log(chalk.blue('⚙️ Updating TypeScript configuration...'));
+      console.log(chalk.blue('⚙️ Updating Next.js configuration...'));
     }
-    await updateTsConfig();
+    await updateNextConfig();
     if (spinner) {
-      spinner.succeed('⚙️ TypeScript configuration updated');
+      spinner.succeed('⚙️ Next.js configuration updated');
     } else {
-      console.log(chalk.green('⚙️ TypeScript configuration updated'));
+      console.log(chalk.green('⚙️ Next.js configuration updated'));
     }
 
-    // Add package.json scripts
-    if (spinner) {
-      spinner.start('📜 Adding TX3 scripts...');
-    } else {
-      console.log(chalk.blue('📜 Adding TX3 scripts...'));
-    }
-    const packageJson = PackageUtils.addScripts({
-      'tx3:generate': 'node scripts/generate-tx3.mjs',
-      'watch:tx3': 'nodemon --watch tx3 --ext tx3 --exec "npm run tx3:generate"',
-      'dev': 'concurrently "next dev --turbopack" "npm run watch:tx3"'
-    });
-    PackageUtils.writePackageJson(packageJson);
-    if (spinner) {
-      spinner.succeed('📜 TX3 scripts added');
-    } else {
-      console.log(chalk.green('📜 TX3 scripts added'));
-    }
-
-    // Create TX3 files and directories
-    if (spinner) {
-      spinner.start('📁 Creating TX3 files...');
-    } else {
-      console.log(chalk.blue('📁 Creating TX3 files...'));
-    }
-    await createTx3Files();
-    if (spinner) {
-      spinner.succeed('📁 TX3 files created');
-    } else {
-      console.log(chalk.green('📁 TX3 files created'));
-    }
 
     // Set up devnet if requested
     if (includeDevnet) {
@@ -264,9 +229,9 @@ export async function installCommand(options: InstallOptions = {}): Promise<void
     console.log(chalk.green('🎉 TX3 installation completed successfully!'));
     console.log();
     console.log(chalk.blue('Next steps:'));
-    console.log(chalk.white('1. Update tx3/trix.toml with your configuration'));
-    console.log(chalk.white('2. Add your TX3 code to tx3/main.tx3'));
-    console.log(chalk.white('3. Run "npm run dev" to start development with TX3'));
+    console.log(chalk.white('1. Run "npm run dev" to start development'));
+    console.log(chalk.white('2. The next-tx3 plugin will automatically create the tx3/ folder and setup'));
+    console.log(chalk.white('3. Add your TX3 code to tx3/ files and start building!'));
 
   } catch (error) {
     if (spinner) {
@@ -312,82 +277,67 @@ async function showDryRunPreview(): Promise<void> {
   }
   
   console.log(chalk.yellow('📦 Packages to install:'));
-  const requiredPackages = ['tx3-sdk', 'tx3-trp'];
-  const requiredDevPackages = ['glob', 'dotenv', 'nodemon', 'concurrently'];
+  const requiredPackages = ['tx3-sdk', 'tx3-trp', 'next-tx3'];
   const missingPackages = PackageUtils.getMissingPackages(requiredPackages);
-  const missingDevPackages = PackageUtils.getMissingPackages(requiredDevPackages);
   
-  if (missingPackages.length === 0 && missingDevPackages.length === 0) {
+  if (missingPackages.length === 0) {
     console.log(chalk.green('  • All required packages already installed'));
   } else {
     missingPackages.forEach(pkg => console.log(`  • ${pkg}`));
-    missingDevPackages.forEach(pkg => console.log(`  • ${pkg} (dev)`));
   }
-
-  console.log();
-  console.log(chalk.yellow('📜 Scripts to add to package.json:'));
-  console.log('  • tx3:generate: node scripts/generate-tx3.mjs');
-  console.log('  • watch:tx3: nodemon --watch tx3 --ext tx3 --exec "npm run tx3:generate"');
-  console.log('  • dev: concurrently "next dev --turbopack" "npm run watch:tx3"');
-
-  console.log();
-  console.log(chalk.yellow('📁 Files to create:'));
-  console.log('  • tx3/trix.toml');
-  console.log('  • tx3/main.tx3');
-  console.log('  • scripts/generate-tx3.mjs');
 
   console.log();
   console.log(chalk.yellow('⚙️ Configuration changes:'));
-  console.log('  • Update tsconfig.json with TX3 path mappings');
+  console.log('  • Update/create next.config.js with next-tx3 plugin');
+  console.log('  • next-tx3 plugin will automatically handle TX3 setup (tsconfig paths, tx3 folder creation)');
 }
 
-async function updateTsConfig(): Promise<void> {
-  const tsconfigPath = 'tsconfig.json';
+
+async function updateNextConfig(): Promise<void> {
+  const nextConfigFiles = ['next.config.js', 'next.config.mjs', 'next.config.ts'];
+  let configFile = nextConfigFiles.find(file => FileUtils.fileExists(file));
   
-  if (!FileUtils.fileExists(tsconfigPath)) {
-    throw new Error('tsconfig.json not found');
+  if (!configFile) {
+    // Create new next.config.js
+    configFile = 'next.config.js';
+    FileUtils.writeFile(configFile, withTX3Template);
+  } else {
+    // Read existing config and update it
+    const existingContent = FileUtils.readFile(configFile);
+    
+    // Simple approach: if it doesn't contain withTX3, wrap the entire export
+    if (!existingContent.includes('withTX3')) {
+      // Add import at the top
+      let updatedContent = existingContent;
+      
+      // Add import if not present
+      if (!updatedContent.includes("import withTX3")) {
+        updatedContent = `import withTX3 from 'next-tx3';\n${updatedContent}`;
+      }
+      
+      // Find the export default and wrap it
+      const exportDefaultRegex = /export default ([^;]+);?/;
+      const match = updatedContent.match(exportDefaultRegex);
+      
+      if (match) {
+        const configVariable = match[1].trim();
+        const wrappedExport = `export default withTX3({
+  ...${configVariable},
+  tx3: {
+    tx3Path: './tx3',        // Path to TX3 files (default: './tx3')
+    autoWatch: true,         // Enable file watching (default: true)
+    autoSetup: true,         // Auto-create TX3 structure (default: true)
+    verbose: true            // Enable detailed logging (default: false)
   }
-
-  const existingContent = FileUtils.readFile(tsconfigPath);
-  let tsconfig;
-  
-  try {
-    tsconfig = JSON.parse(existingContent);
-  } catch (error) {
-    throw new Error('Failed to parse tsconfig.json');
+});`;
+        
+        updatedContent = updatedContent.replace(exportDefaultRegex, wrappedExport);
+        FileUtils.writeFile(configFile, updatedContent);
+      } else {
+        throw new Error('Could not find export default in Next.js config. Please manually add withTX3 wrapper.');
+      }
+    }
   }
-
-  // Ensure compilerOptions exists
-  if (!tsconfig.compilerOptions) {
-    tsconfig.compilerOptions = {};
-  }
-
-  // Ensure paths exists
-  if (!tsconfig.compilerOptions.paths) {
-    tsconfig.compilerOptions.paths = {};
-  }
-
-  // Add TX3 path mappings
-  tsconfig.compilerOptions.paths["@tx3/*"] = ["./tx3/bindings/*"];
-  tsconfig.compilerOptions.paths["@tx3"] = ["./tx3/bindings"];
-
-  // Write updated tsconfig
-  FileUtils.writeFile(tsconfigPath, JSON.stringify(tsconfig, null, 2));
-}
-
-async function createTx3Files(): Promise<void> {
-  // Create tx3 directory
-  FileUtils.createDirectory('tx3');
-  FileUtils.createDirectory('scripts');
-
-  // Create trix.toml
-  FileUtils.writeFile('tx3/trix.toml', trixTomlTemplate);
-
-  // Create main.tx3
-  FileUtils.writeFile('tx3/main.tx3', mainTx3Template);
-
-  // Create generate script
-  FileUtils.writeFile('scripts/generate-tx3.mjs', generateScriptTemplate);
 }
 
 function setupDevnet(): void {

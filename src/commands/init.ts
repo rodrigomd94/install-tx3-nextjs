@@ -145,9 +145,9 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
     console.log(chalk.blue('Next steps:'));
     console.log(chalk.white(`1. cd ${projectName}`));
     console.log(chalk.white('2. Update .env.local with your TX3 endpoint and API key'));
-    console.log(chalk.white('3. Update tx3/trix.toml with your configuration'));
-    console.log(chalk.white('4. Add your TX3 code to tx3/main.tx3'));
-    console.log(chalk.white('5. Run "npm run dev" to start development with TX3 demo'));
+    console.log(chalk.white('3. Run "npm run dev" to start development with TX3 demo'));
+    console.log(chalk.white('4. The next-tx3 plugin will automatically create the tx3/ folder and setup'));
+    console.log(chalk.white('5. Add your TX3 code to tx3/ files and start building!'));
     console.log();
     console.log(chalk.blue('Environment Configuration:'));
     console.log(chalk.white('• NEXT_PUBLIC_TRP_ENDPOINT: TX3 TRP endpoint (default: http://localhost:8164)'));
@@ -270,12 +270,9 @@ async function showInitDryRunPreview(projectName: string, trixInstalled: boolean
   
   console.log();
   console.log(chalk.yellow('🔧 TX3 installation:'));
-  console.log('  • Install TX3 packages (tx3-sdk, tx3-trp)');
-  console.log('  • Install dev dependencies (glob, dotenv, nodemon, concurrently)');
-  console.log('  • Add TX3 scripts to package.json');
-  console.log('  • Update tsconfig.json with TX3 path mappings');
-  console.log('  • Create tx3/ directory and files');
-  console.log('  • Create scripts/generate-tx3.mjs');
+  console.log('  • Install TX3 packages (tx3-sdk, tx3-trp, next-tx3)');
+  console.log('  • Update/create next.config.js with next-tx3 plugin');
+  console.log('  • next-tx3 plugin will automatically handle TX3 setup (tsconfig paths, tx3 folder creation)');
   console.log('  • Replace app/page.tsx with TX3 example page');
   console.log('  • Create .env.local with TX3 environment variables');
   if (hasTrix) {
