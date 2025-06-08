@@ -1,6 +1,6 @@
 # TX3 Installer CLI
 
-A CLI tool that creates new Next.js projects with TX3 capabilities or adds TX3 to existing Next.js projects. Features shadcn/ui integration, optional trix installation, devnet setup for local testing, complete TX3 setup, and a working demo page out of the box.
+A CLI tool that creates new Next.js projects with TX3 capabilities or adds TX3 to existing Next.js projects. Features shadcn/ui integration, optional trix installation, devnet setup for local testing, and automated TX3 setup via the next-tx3 plugin.
 
 ## Installation
 
@@ -60,17 +60,17 @@ Creates a complete TX3-enabled Next.js project:
 1. **Optionally installs** trix via tx3up (recommended)
 2. **Creates** Next.js project with optimal configuration
 3. **Initializes** shadcn/ui with essential components
-4. **Installs** TX3 packages: `tx3-sdk`, `tx3-trp` (regular deps)
-5. **Installs** dev dependencies: `glob`, `dotenv`, `nodemon`, `concurrently`
-6. **Updates** `tsconfig.json` with TX3 path mappings (`@tx3/*`, `@tx3`)
-7. **Adds** TX3 scripts to `package.json`
-8. **Creates** TX3 files and directories:
-   - `tx3/trix.toml` - TX3 configuration
-   - `tx3/main.tx3` - Main TX3 source file
-   - `scripts/generate-tx3.mjs` - TX3 generation script
-9. **Replaces** `app/page.tsx` with TX3 demo page
-10. **Creates** `.env.local` with TX3 environment variables
-11. **Optionally sets up** devnet configuration (if trix is available)
+4. **Installs** TX3 packages: `tx3-sdk`, `tx3-trp`, `next-tx3`
+5. **Configures** `next.config.js` with the next-tx3 plugin
+6. **Replaces** `app/page.tsx` with TX3 demo page
+7. **Creates** `.env.local` with TX3 environment variables
+8. **Optionally sets up** devnet configuration (if trix is available)
+
+**The next-tx3 plugin automatically handles:**
+- TX3 folder and file creation
+- TypeScript path mappings (`@tx3/*`, `@tx3`)
+- File watching and compilation
+- Development workflow integration
 
 ### For Existing Projects (`install` command)
 
@@ -78,27 +78,41 @@ Adds TX3 capabilities to existing Next.js projects:
 
 1. **Validates** your Next.js project
 2. **Optionally installs** trix via tx3up (recommended)
-3. **Installs** TX3 packages and dev dependencies
-4. **Updates** `tsconfig.json` with TX3 path mappings
-5. **Adds** TX3 scripts to your `package.json`
-6. **Creates** TX3 files and directories
-7. **Optionally sets up** devnet configuration (if trix is available)
-8. **Preserves** all existing functionality
+3. **Installs** TX3 packages: `tx3-sdk`, `tx3-trp`, `next-tx3`
+4. **Updates/creates** `next.config.js` with the next-tx3 plugin
+5. **Optionally sets up** devnet configuration (if trix is available)
+6. **Preserves** all existing functionality
 
-## TypeScript Configuration
+**The next-tx3 plugin automatically handles:**
+- TX3 folder and file creation
+- TypeScript path mappings (`@tx3/*`, `@tx3`)
+- File watching and compilation
+- Development workflow integration
 
-The installer adds TX3 path mappings to your `tsconfig.json`:
+## Next.js Configuration
 
-```json
-{
-  "compilerOptions": {
-    "paths": {
-      "@tx3/*": ["./tx3/bindings/*"],
-      "@tx3": ["./tx3/bindings"]
-    }
+The installer configures your `next.config.js` with the next-tx3 plugin:
+
+```javascript
+import { withTX3 } from 'next-tx3';
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // Your existing Next.js config here
+};
+
+export default withTX3({
+  ...nextConfig,
+  tx3: {
+    tx3Path: './tx3',        // Path to TX3 files (default: './tx3')
+    autoWatch: true,         // Enable file watching (default: true)
+    autoSetup: true,         // Auto-create TX3 structure (default: true)
+    verbose: true            // Enable detailed logging (default: false)
   }
-}
+});
 ```
+
+The plugin automatically handles TypeScript configuration and path mappings.
 
 ## Trix Installation
 
@@ -151,20 +165,19 @@ NEXT_PUBLIC_TRP_ENDPOINT="http://localhost:8164"
 NEXT_PUBLIC_TRP_API_KEY=""
 ```
 
-## Package.json Scripts Added
+## Package.json Scripts
+
+The installer only adds devnet-related scripts if devnet setup is selected:
 
 ```json
 {
   "scripts": {
-    "tx3:generate": "node scripts/generate-tx3.mjs",
-    "watch:tx3": "nodemon --watch tx3 --ext tx3 --exec \"npm run tx3:generate\"",
-    "dev": "concurrently \"next dev --turbopack\" \"npm run watch:tx3\"",
     "devnet:start": "cd devnet && dolos daemon"
   }
 }
 ```
 
-**Note:** The `devnet:start` script is only added if devnet setup is selected during installation.
+**Note:** TX3 compilation and watching is now handled automatically by the next-tx3 plugin during `npm run dev`. No additional scripts are needed!
 
 ## Safety Features
 
@@ -182,20 +195,20 @@ After running `init`:
 
 1. `cd your-project-name`
 2. Update `.env.local` with your TX3 endpoint and API key
-3. Update `tx3/trix.toml` with your TX3 configuration  
-4. Add your TX3 code to `tx3/main.tx3`
-5. **Optional**: Start local devnet with `npm run devnet:start`
-6. Run `npm run dev` to start development
+3. Run `npm run dev` to start development
+4. The next-tx3 plugin will automatically create the `tx3/` folder and setup
+5. Add your TX3 code to `tx3/` files and start building!
+6. **Optional**: Start local devnet with `npm run devnet:start`
 
 ### For Existing Projects
 
 After running `install`:
 
-1. Create `.env.local` with TX3 environment variables
-2. Update `tx3/trix.toml` with your TX3 configuration
-3. Add your TX3 code to `tx3/main.tx3`
-4. **Optional**: Start local devnet with `npm run devnet:start` (if devnet was set up)
-5. Run `npm run dev` to start development
+1. Create `.env.local` with TX3 environment variables (if needed)
+2. Run `npm run dev` to start development
+3. The next-tx3 plugin will automatically create the `tx3/` folder and setup
+4. Add your TX3 code to `tx3/` files and start building!
+5. **Optional**: Start local devnet with `npm run devnet:start` (if devnet was set up)
 
 ### Development with Devnet
 
@@ -205,12 +218,11 @@ If you included devnet setup:
 2. **Explore devnet**: In another terminal, run `cd tx3 && trix explore`
 3. **Develop**: Run `npm run dev` for your Next.js app
 
-The development server will:
-- Run your Next.js app with Turbopack
-- Watch for changes in TX3 files
-- Automatically regenerate TX3 bindings when files change
-- Display TX3 demo page (for new projects)
-- Connect to your local devnet (if configured)
+The next-tx3 plugin automatically:
+- Watches for changes in TX3 files
+- Compiles TX3 files and generates TypeScript bindings
+- Updates TypeScript path mappings
+- Integrates seamlessly with Next.js development workflow
 
 ## Package Manager Support
 
@@ -236,6 +248,7 @@ npx install-tx3-nextjs init my-tx3-app
 # 🏗️ Creating Next.js project with shadcn/ui...
 # 📁 Project created in: my-tx3-app
 # 🔧 Installing TX3 capabilities...
+# ⚙️ Updating Next.js configuration...
 # 📄 Creating TX3 example page...
 # ⚙️ Creating environment configuration...
 # 🎉 Project created successfully in 'my-tx3-app'!
@@ -252,9 +265,7 @@ npx install-tx3-nextjs install
 # 📦 Using package manager: npm
 # 📝 Creating backup...
 # 🔧 Installing TX3 packages...
-# ⚙️ Updating TypeScript configuration...
-# 📜 Adding TX3 scripts...
-# 📁 Creating TX3 files...
+# ⚙️ Updating Next.js configuration...
 # 🎉 TX3 installation completed successfully!
 ```
 

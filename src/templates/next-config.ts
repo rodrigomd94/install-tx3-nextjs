@@ -1,4 +1,4 @@
-export const withTX3Template = `import withTX3 from 'next-tx3';
+export const withTX3Template = `import { withTX3 } from 'next-tx3';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

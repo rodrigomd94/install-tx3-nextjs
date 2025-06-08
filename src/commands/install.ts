@@ -311,8 +311,8 @@ async function updateNextConfig(): Promise<void> {
       let updatedContent = existingContent;
       
       // Add import if not present
-      if (!updatedContent.includes("import withTX3")) {
-        updatedContent = `import withTX3 from 'next-tx3';\n${updatedContent}`;
+      if (!updatedContent.includes("import { withTX3 }")) {
+        updatedContent = `import { withTX3 } from 'next-tx3';\n${updatedContent}`;
       }
       
       // Find the export default and wrap it
